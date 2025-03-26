@@ -5,65 +5,82 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView, 
-  Image,
   StatusBar,
-  ImageBackground
+  Platform
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useTheme } from '../context/ThemeContext';
 
 type HomeScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
+  const { theme } = useTheme();
+  
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <ImageBackground 
-        source={{ uri: 'https://i.imgur.com/8JnZlIm.jpg' }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      >
-        <View style={styles.overlay}>
-          <View style={styles.headerContainer}>
-            <Text style={styles.title}>五十音图学习</Text>
-            <Text style={styles.subtitle}>轻松掌握日语基础</Text>
-          </View>
-          
-          <View style={styles.buttonsContainer}>
-            <TouchableOpacity 
-              style={[styles.button, styles.hiraganaButton]} 
-              onPress={() => navigation.navigate('HiraganaChart')}
-            >
-              <Text style={styles.buttonText}>平假名表</Text>
-              <Text style={styles.buttonSubtext}>あ い う え お</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.button, styles.katakanaButton]} 
-              onPress={() => navigation.navigate('KatakanaChart')}
-            >
-              <Text style={styles.buttonText}>片假名表</Text>
-              <Text style={styles.buttonSubtext}>ア イ ウ エ オ</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.button, styles.quizButton]} 
-              onPress={() => navigation.navigate('Quiz', { mode: 'both' })}
-            >
-              <Text style={styles.buttonText}>五十音测试</Text>
-              <Text style={styles.buttonSubtext}>测试你的记忆</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              五十音图是学习日语的基础，包含平假名和片假名两套音标系统
-            </Text>
-          </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} />
+      <View style={[styles.background, { backgroundColor: theme.background }]}>
+        <View style={styles.headerContainer}>
+          <Text style={[styles.title, { color: theme.text }]}>五十音图</Text>
+          <Text style={[styles.subtitle, { color: theme.subText }]}>轻松掌握日语基础</Text>
         </View>
-      </ImageBackground>
+        
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              { 
+                backgroundColor: theme.isDark 
+                  ? theme.buttonBackground 
+                  : theme.hiraganaColor 
+              }
+            ]} 
+            onPress={() => navigation.navigate('HiraganaChart')}
+          >
+            <Text style={[styles.buttonText, { color: theme.text }]}>平假名表</Text>
+            <Text style={[styles.buttonSubtext, { color: theme.isDark ? theme.subText : 'rgba(255, 255, 255, 0.8)' }]}>あ い う え お</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              { 
+                backgroundColor: theme.isDark 
+                  ? theme.buttonBackground 
+                  : theme.katakanaColor 
+              }
+            ]} 
+            onPress={() => navigation.navigate('KatakanaChart')}
+          >
+            <Text style={[styles.buttonText, { color: theme.text }]}>片假名表</Text>
+            <Text style={[styles.buttonSubtext, { color: theme.isDark ? theme.subText : 'rgba(255, 255, 255, 0.8)' }]}>ア イ ウ エ オ</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              { 
+                backgroundColor: theme.isDark 
+                  ? theme.buttonBackground 
+                  : theme.quizColor 
+              }
+            ]} 
+            onPress={() => navigation.navigate('Quiz', { mode: 'both' })}
+          >
+            <Text style={[styles.buttonText, { color: theme.text }]}>五十音测试</Text>
+            <Text style={[styles.buttonSubtext, { color: theme.isDark ? theme.subText : 'rgba(255, 255, 255, 0.8)' }]}>测试你的记忆</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={[styles.footer, { borderTopColor: theme.isDark ? theme.border : 'rgba(184, 196, 229, 0.2)' }]}>
+          <Text style={[styles.footerText, { color: theme.subText }]}>
+            五十音图是学习日语的基础，包含平假名和片假名两套音标系统
+          </Text>
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -72,13 +89,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backgroundImage: {
+  background: {
     flex: 1,
-    width: '100%',
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 20,
     justifyContent: 'space-between',
   },
@@ -87,14 +99,15 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   title: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 3
   },
   subtitle: {
     fontSize: 18,
-    color: '#eee',
     marginBottom: 20,
   },
   buttonsContainer: {
@@ -106,47 +119,38 @@ const styles = StyleSheet.create({
   button: {
     width: '90%',
     height: 100,
-    borderRadius: 15,
+    borderRadius: 14,
     marginVertical: 10,
-    padding: 15,
+    padding: 18,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 3,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  hiraganaButton: {
-    backgroundColor: '#4A86E8',
-  },
-  katakanaButton: {
-    backgroundColor: '#E67C73',
-  },
-  quizButton: {
-    backgroundColor: '#57BB8A',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
   },
   buttonText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    marginBottom: 4,
   },
   buttonSubtext: {
     fontSize: 16,
-    color: '#fff',
     marginTop: 5,
   },
   footer: {
     marginTop: 20,
     alignItems: 'center',
     marginBottom: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
   },
   footerText: {
     fontSize: 14,
-    color: '#ddd',
     textAlign: 'center',
   },
 });

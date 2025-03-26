@@ -5,265 +5,308 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView,
-  Alert,
-  Animated
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
-import { RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 import { hiraganaData } from '../data/hiragana';
 import { katakanaData } from '../data/katakana';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-type QuizScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Quiz'>;
-  route: RouteProp<RootStackParamList, 'Quiz'>;
+type Question = {
+  kana: string;
+  romaji: string;
+  options: string[];
+  type: 'hiragana' | 'katakana';
 };
 
-const QuizScreen = ({ navigation, route }: QuizScreenProps) => {
+type Props = NativeStackScreenProps<RootStackParamList, 'Quiz'>;
+
+const QuizScreen = ({ route }: Props) => {
   const { mode } = route.params;
-  
-  const [quizData, setQuizData] = useState<any[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [quizMode, setQuizMode] = useState<'hiragana' | 'katakana' | 'both' | null>(mode || null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
-  const [options, setOptions] = useState<string[]>([]);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [fadeAnim] = useState(new Animated.Value(1));
-  const [quizType, setQuizType] = useState<'kana-to-romaji' | 'romaji-to-kana'>('kana-to-romaji');
-  
-  // Generate quiz data based on mode
+  const [isLoading, setIsLoading] = useState(false);
+  const { theme } = useTheme();
+
+  // 初始化时根据传入的模式生成问题
   useEffect(() => {
-    let data: any[] = [];
+    if (quizMode) {
+      generateQuestions(quizMode);
+    }
+  }, []);
+
+  // 生成随机问题
+  const generateQuestions = (mode: 'hiragana' | 'katakana' | 'both') => {
+    setIsLoading(true);
     
+    let allData: any[] = [];
     if (mode === 'hiragana' || mode === 'both') {
-      data = [...data, ...hiraganaData];
+      allData = [...allData, ...hiraganaData.map(item => ({...item, type: 'hiragana'}))];
     }
-    
     if (mode === 'katakana' || mode === 'both') {
-      data = [...data, ...katakanaData];
+      allData = [...allData, ...katakanaData.map(item => ({...item, type: 'katakana'}))];
     }
     
-    // Shuffle and take 10 random characters
-    const shuffled = data.sort(() => 0.5 - Math.random());
+    // 随机选择10个问题
+    const shuffled = [...allData].sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, 10);
     
-    setQuizData(selected);
-    generateOptions(selected[0], quizType);
-  }, [mode]);
-  
-  // Generate options for the current question
-  const generateOptions = (question: any, type: 'kana-to-romaji' | 'romaji-to-kana') => {
-    if (!question) return;
+    // 为每个问题生成选项
+    const quizQuestions = selected.map(item => {
+      // 从所有数据中随机选择3个错误选项
+      const otherOptions = allData
+        .filter(other => other.romaji !== item.romaji)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3)
+        .map(option => option.romaji);
+      
+      // 加入正确选项并打乱顺序
+      const options = [...otherOptions, item.romaji].sort(() => 0.5 - Math.random());
+      
+      return {
+        kana: item.kana,
+        romaji: item.romaji,
+        options,
+        type: item.type
+      };
+    });
     
-    const correct = type === 'kana-to-romaji' ? question.romaji : question.kana;
-    const allOptions = type === 'kana-to-romaji' 
-      ? [...hiraganaData, ...katakanaData].map(item => item.romaji)
-      : [...hiraganaData, ...katakanaData].map(item => item.kana);
-    
-    // Filter out duplicates and the correct answer
-    const uniqueOptions = [...new Set(allOptions)].filter(option => option !== correct);
-    
-    // Shuffle and take 3 random wrong options
-    const shuffledOptions = uniqueOptions.sort(() => 0.5 - Math.random()).slice(0, 3);
-    
-    // Add the correct option and shuffle again
-    const finalOptions = [...shuffledOptions, correct].sort(() => 0.5 - Math.random());
-    
-    setOptions(finalOptions);
-  };
-  
-  // Handle option selection
-  const handleOptionSelect = (option: string) => {
-    const currentChar = quizData[currentQuestion];
-    const correctAnswer = quizType === 'kana-to-romaji' ? currentChar.romaji : currentChar.kana;
-    
-    setSelectedOption(option);
-    
-    if (option === correctAnswer) {
-      setIsCorrect(true);
-      setScore(score + 1);
-    } else {
-      setIsCorrect(false);
-    }
-    
-    // Wait a moment to show the result, then move to next question
-    setTimeout(() => {
-      if (currentQuestion < quizData.length - 1) {
-        // Fade out animation
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true
-        }).start(() => {
-          setCurrentQuestion(currentQuestion + 1);
-          setSelectedOption(null);
-          setIsCorrect(null);
-          
-          // Switch quiz type randomly
-          const newType = Math.random() > 0.5 ? 'kana-to-romaji' : 'romaji-to-kana';
-          setQuizType(newType);
-          
-          // Generate new options for next question
-          generateOptions(quizData[currentQuestion + 1], newType);
-          
-          // Fade in animation
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true
-          }).start();
-        });
-      } else {
-        setShowResult(true);
-      }
-    }, 1500);
-  };
-  
-  // Restart the quiz
-  const handleRestart = () => {
-    // Shuffle the quiz data again
-    const shuffled = [...hiraganaData, ...katakanaData].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 10);
-    
-    setQuizData(selected);
-    setCurrentQuestion(0);
+    setQuestions(quizQuestions);
+    setCurrentQuestionIndex(0);
     setScore(0);
     setShowResult(false);
     setSelectedOption(null);
-    setIsCorrect(null);
-    setQuizType('kana-to-romaji');
-    generateOptions(selected[0], 'kana-to-romaji');
+    setIsLoading(false);
   };
-  
-  // Change quiz type
-  const handleChangeQuizType = () => {
-    const newType = quizType === 'kana-to-romaji' ? 'romaji-to-kana' : 'kana-to-romaji';
-    setQuizType(newType);
-    generateOptions(quizData[currentQuestion], newType);
+
+  const handleSelectOption = (option: string) => {
+    if (selectedOption) return; // 防止重复选择
+    
+    setSelectedOption(option);
+    
+    // 检查答案是否正确
+    const currentQuestion = questions[currentQuestionIndex];
+    if (option === currentQuestion.romaji) {
+      setScore(score + 1);
+    }
+    
+    // 延迟切换到下一题或显示结果
+    setTimeout(() => {
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setSelectedOption(null);
+      } else {
+        setShowResult(true);
+      }
+    }, 1000);
   };
-  
-  // Render the result screen
-  if (showResult) {
+
+  const renderQuizModeSelection = () => {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultTitle}>测试完成!</Text>
-          <Text style={styles.scoreText}>你的得分</Text>
-          <View style={styles.scoreCircle}>
-            <Text style={styles.scoreValue}>{score}/{quizData.length}</Text>
-            <Text style={styles.scorePercent}>{Math.round((score / quizData.length) * 100)}%</Text>
-          </View>
-          
-          <Text style={styles.resultMessage}>
-            {score === quizData.length 
-              ? '太棒了！你掌握得很好！' 
-              : score >= quizData.length * 0.7 
-                ? '做得不错！继续加油！' 
-                : '再接再厉，多多练习！'}
-          </Text>
-          
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.restartButton} onPress={handleRestart}>
-              <Text style={styles.buttonText}>再测一次</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.homeButton} 
-              onPress={() => navigation.navigate('Home')}
-            >
-              <Text style={styles.buttonText}>返回首页</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
-  // Render the quiz
-  const currentChar = quizData[currentQuestion];
-  if (!currentChar) return null;
-  
-  const questionValue = quizType === 'kana-to-romaji' ? currentChar.kana : currentChar.romaji;
-  const questionType = currentChar.kana.match(/[あ-ん]/) ? '平假名' : '片假名';
-  
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.questionCount}>问题 {currentQuestion + 1}/{quizData.length}</Text>
-        <Text style={styles.scoreHeader}>得分: {score}</Text>
+      <View style={styles.modeContainer}>
+        <Text style={[styles.modeTitle, { color: theme.text }]}>选择测试模式</Text>
+        
+        <TouchableOpacity 
+          style={[styles.modeButton, { backgroundColor: theme.hiraganaColor }]}
+          onPress={() => {
+            setQuizMode('hiragana');
+            generateQuestions('hiragana');
+          }}
+        >
+          <Ionicons name="book-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
+          <Text style={styles.modeButtonText}>平假名测试</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.modeButton, { backgroundColor: theme.katakanaColor }]}
+          onPress={() => {
+            setQuizMode('katakana');
+            generateQuestions('katakana');
+          }}
+        >
+          <Ionicons name="book-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
+          <Text style={styles.modeButtonText}>片假名测试</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.modeButton, { backgroundColor: theme.primary }]}
+          onPress={() => {
+            setQuizMode('both');
+            generateQuestions('both');
+          }}
+        >
+          <Ionicons name="school-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
+          <Text style={styles.modeButtonText}>混合测试</Text>
+        </TouchableOpacity>
       </View>
-      
-      <Animated.View 
-        style={[
-          styles.quizContainer,
-          { opacity: fadeAnim }
-        ]}
-      >
-        <View style={styles.quizTypeContainer}>
-          <Text style={styles.quizTypeText}>
-            {quizType === 'kana-to-romaji' ? '假名 → 罗马音' : '罗马音 → 假名'}
+    );
+  };
+
+  const renderQuestion = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>加载中...</Text>
+        </View>
+      );
+    }
+    
+    if (questions.length === 0) return null;
+    
+    const currentQuestion = questions[currentQuestionIndex];
+    
+    return (
+      <View style={styles.questionContainer}>
+        <View style={styles.progressContainer}>
+          <Text style={[styles.progressText, { color: theme.text }]}>
+            问题 {currentQuestionIndex + 1} / {questions.length}
           </Text>
-          <TouchableOpacity 
-            style={styles.switchButton}
-            onPress={handleChangeQuizType}
-          >
-            <Text style={styles.switchButtonText}>切换类型</Text>
-          </TouchableOpacity>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { 
+                  width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
+                  backgroundColor: currentQuestion.type === 'hiragana' ? theme.hiraganaColor : theme.katakanaColor
+                }
+              ]} 
+            />
+          </View>
         </View>
         
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionLabel}>
-            {quizType === 'kana-to-romaji' 
-              ? `这个${questionType}的读音是？` 
-              : `这个罗马音对应的${questionType}是？`}
+        <View style={[styles.kanaCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.kanaText, { color: theme.text }]}>
+            {currentQuestion.kana}
           </Text>
-          <Text style={styles.questionValue}>{questionValue}</Text>
+          <Text style={[styles.kanaType, { color: theme.subText }]}>
+            {currentQuestion.type === 'hiragana' ? '平假名' : '片假名'}
+          </Text>
         </View>
+        
+        <Text style={[styles.questionText, { color: theme.text }]}>这个假名的读音是？</Text>
         
         <View style={styles.optionsContainer}>
-          {options.map((option, index) => (
+          {currentQuestion.options.map((option, index) => (
             <TouchableOpacity
               key={index}
               style={[
                 styles.optionButton,
-                selectedOption === option && (
-                  option === (quizType === 'kana-to-romaji' ? currentChar.romaji : currentChar.kana)
-                    ? styles.correctOption
-                    : styles.wrongOption
-                )
+                { 
+                  backgroundColor: theme.card,
+                  borderColor: 
+                    selectedOption === option 
+                      ? option === currentQuestion.romaji
+                        ? '#4CAF50'  // 正确答案
+                        : '#F44336'  // 错误答案 
+                      : theme.border
+                },
+                selectedOption && option === currentQuestion.romaji && styles.correctOption
               ]}
-              onPress={() => handleOptionSelect(option)}
+              onPress={() => handleSelectOption(option)}
               disabled={selectedOption !== null}
             >
               <Text style={[
-                styles.optionText,
-                selectedOption === option && (
-                  option === (quizType === 'kana-to-romaji' ? currentChar.romaji : currentChar.kana)
-                    ? styles.correctOptionText
-                    : styles.wrongOptionText
-                )
-              ]}>{option}</Text>
+                styles.optionText, 
+                { color: selectedOption === option ? '#FFFFFF' : theme.text }
+              ]}>
+                {option}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
-        
-        {isCorrect !== null && (
-          <View style={styles.feedbackContainer}>
-            <Text style={[
-              styles.feedbackText,
-              isCorrect ? styles.correctFeedback : styles.wrongFeedback
-            ]}>
-              {isCorrect ? '回答正确！' : '回答错误！'}
+      </View>
+    );
+  };
+
+  const renderResult = () => {
+    const percentage = (score / questions.length) * 100;
+    let resultMessage = '';
+    let resultIcon = '';
+    
+    if (percentage >= 90) {
+      resultMessage = '太棒了！你是假名大师！';
+      resultIcon = 'trophy-outline';
+    } else if (percentage >= 70) {
+      resultMessage = '很好！你掌握得不错！';
+      resultIcon = 'thumbs-up-outline';
+    } else if (percentage >= 50) {
+      resultMessage = '加油！继续练习吧！';
+      resultIcon = 'fitness-outline';
+    } else {
+      resultMessage = '需要更多练习，不要放弃！';
+      resultIcon = 'heart-outline';
+    }
+    
+    return (
+      <View style={styles.resultContainer}>
+        <View style={[styles.resultCard, { backgroundColor: theme.card }]}>
+          <Ionicons name={resultIcon as any} size={60} color={theme.primary} style={styles.resultIcon} />
+          
+          <Text style={[styles.resultTitle, { color: theme.text }]}>测试完成！</Text>
+          
+          <View style={styles.scoreContainer}>
+            <Text style={[styles.scoreText, { color: theme.text }]}>
+              得分：{score} / {questions.length}
             </Text>
-            {!isCorrect && (
-              <Text style={styles.correctAnswerText}>
-                正确答案: {quizType === 'kana-to-romaji' ? currentChar.romaji : currentChar.kana}
-              </Text>
-            )}
+            <View style={styles.scoreBar}>
+              <View 
+                style={[
+                  styles.scoreFill, 
+                  { 
+                    width: `${percentage}%`,
+                    backgroundColor: 
+                      percentage >= 70 ? '#4CAF50' : 
+                      percentage >= 50 ? '#FFC107' : '#F44336'
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={[styles.percentageText, { color: theme.subText }]}>
+              {percentage.toFixed(0)}%
+            </Text>
           </View>
-        )}
-      </Animated.View>
+          
+          <Text style={[styles.resultMessage, { color: theme.text }]}>{resultMessage}</Text>
+          
+          <TouchableOpacity 
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={() => {
+              if (quizMode) {
+                generateQuestions(quizMode);
+              } else {
+                setQuizMode(null);
+              }
+            }}
+          >
+            <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={styles.retryIcon} />
+            <Text style={styles.retryButtonText}>再来一次</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.homeButton, { borderColor: theme.border }]}
+            onPress={() => setQuizMode(null)}
+          >
+            <Text style={[styles.homeButtonText, { color: theme.text }]}>返回选择</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView style={styles.scrollView}>
+        {quizMode === null ? renderQuizModeSelection() : 
+         showResult ? renderResult() : renderQuestion()}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -271,210 +314,199 @@ const QuizScreen = ({ navigation, route }: QuizScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-    elevation: 3,
-  },
-  questionCount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  scoreHeader: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4A86E8',
-  },
-  quizContainer: {
+  scrollView: {
     flex: 1,
-    padding: 20,
   },
-  quizTypeContainer: {
+  modeContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  modeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
+  },
+  modeButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  quizTypeText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  switchButton: {
-    backgroundColor: '#4A86E8',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  switchButtonText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  questionContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  questionLabel: {
-    fontSize: 18,
-    color: '#555',
-    marginBottom: 15,
-  },
-  questionValue: {
-    fontSize: 60,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  optionsContainer: {
-    marginBottom: 20,
-  },
-  optionButton: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  correctOption: {
-    backgroundColor: '#4caf50',
-  },
-  wrongOption: {
-    backgroundColor: '#f44336',
-  },
-  optionText: {
-    fontSize: 20,
-    color: '#333',
-  },
-  correctOptionText: {
-    color: '#fff',
-  },
-  wrongOptionText: {
-    color: '#fff',
-  },
-  feedbackContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  feedbackText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  correctFeedback: {
-    color: '#4caf50',
-  },
-  wrongFeedback: {
-    color: '#f44336',
-  },
-  correctAnswerText: {
-    fontSize: 16,
-    color: '#555',
-  },
-  resultContainer: {
-    flex: 1,
-    padding: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    width: '90%',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  modeIcon: {
+    marginRight: 10,
+  },
+  modeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  questionContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  progressContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  progressText: {
+    fontSize: 14,
+    marginBottom: 5,
+    textAlign: 'right',
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+  },
+  kanaCard: {
+    width: 150,
+    height: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 15,
+    borderWidth: 2,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  kanaText: {
+    fontSize: 70,
+    fontWeight: 'bold',
+  },
+  kanaType: {
+    fontSize: 14,
+    marginTop: 5,
+  },
+  questionText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  optionsContainer: {
+    width: '100%',
+  },
+  optionButton: {
+    width: '100%',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  correctOption: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  optionText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  resultContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  resultCard: {
+    width: '100%',
+    padding: 20,
+    borderRadius: 15,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  resultIcon: {
+    marginBottom: 15,
   },
   resultTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    marginBottom: 20,
+  },
+  scoreContainer: {
+    width: '100%',
+    alignItems: 'center',
     marginBottom: 20,
   },
   scoreText: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 15,
-  },
-  scoreCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#4A86E8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 25,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.27,
-    shadowRadius: 4.65,
-    elevation: 6,
-  },
-  scoreValue: {
-    fontSize: 32,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    marginBottom: 10,
   },
-  scorePercent: {
-    fontSize: 18,
-    color: '#fff',
+  scoreBar: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 5,
+  },
+  scoreFill: {
+    height: '100%',
+  },
+  percentageText: {
+    fontSize: 16,
   },
   resultMessage: {
     fontSize: 18,
-    color: '#555',
     textAlign: 'center',
     marginBottom: 30,
   },
-  buttonContainer: {
+  retryButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
-  },
-  restartButton: {
-    backgroundColor: '#4A86E8',
-    paddingVertical: 15,
-    paddingHorizontal: 25,
+    padding: 15,
     borderRadius: 10,
-    flex: 1,
+    marginBottom: 10,
+  },
+  retryIcon: {
     marginRight: 10,
-    alignItems: 'center',
   },
-  homeButton: {
-    backgroundColor: '#9E9E9E',
-    paddingVertical: 15,
-    paddingHorizontal: 25,
-    borderRadius: 10,
-    flex: 1,
-    marginLeft: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
+  retryButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+  },
+  homeButton: {
+    width: '100%',
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

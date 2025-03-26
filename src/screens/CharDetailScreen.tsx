@@ -1,147 +1,199 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView,
+  ScrollView,
+  Image,
   Animated,
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useTheme } from '../context/ThemeContext';
+import AudioService from '../services/AudioService';
 
-type CharDetailScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'CharDetail'>;
-  route: RouteProp<RootStackParamList, 'CharDetail'>;
-};
+type Props = NativeStackScreenProps<RootStackParamList, 'CharDetail'>;
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-const CharDetailScreen = ({ navigation, route }: CharDetailScreenProps) => {
+const CharDetailScreen = ({ route, navigation }: Props) => {
   const { kana, romaji, audio, type } = route.params;
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [scaleAnim] = useState(new Animated.Value(1));
-  
-  // Example pronunciation words based on the kana character
-  const getExampleWords = () => {
-    const examples: {[key: string]: {word: string, meaning: string}} = {
-      'あ': { word: 'あめ (ame)', meaning: '雨 - 雨' },
-      'い': { word: 'いえ (ie)', meaning: '家 - 房子' },
-      'う': { word: 'うみ (umi)', meaning: '海 - 海洋' },
-      'か': { word: 'かばん (kaban)', meaning: '鞄 - 包' },
-      'き': { word: 'きって (kitte)', meaning: '切手 - 邮票' },
-      'さ': { word: 'さくら (sakura)', meaning: '桜 - 樱花' },
-      'ア': { word: 'アイス (aisu)', meaning: '冰淇淋' },
-      'イ': { word: 'イス (isu)', meaning: '椅子' },
-      'ウ': { word: 'ウミ (umi)', meaning: '海 - 海洋' },
-    };
-    
-    return examples[kana] || { word: '无示例', meaning: '无含义' };
-  };
-  
-  // Placeholder for audio playback function
-  const playSound = async () => {
-    // In a real app, you would load the audio file here
-    // For now, we'll just simulate the playback with animation
-    setIsPlaying(true);
-    
-    // Create animation for the kana character
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 1.2,
-        duration: 200,
-        useNativeDriver: true
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true
-      })
-    ]).start(() => {
-      setIsPlaying(false);
-    });
-    
-    // Simulating audio loading and playing
-    const { sound } = await Audio.Sound.createAsync(
-      require('../../assets/sounds/placeholder.mp3') // You would need to add this file
-    );
-    setSound(sound);
-    await sound.playAsync();
-  };
-  
-  // Clean up the sound when the component unmounts
+  const [strokeOrder, setStrokeOrder] = useState<string[]>([]);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const { theme } = useTheme();
+  const audioService = AudioService.getInstance();
+
+  // For demo, just mocking stroke order images
   useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
-  
-  const exampleWord = getExampleWords();
-  
+    // This would normally fetch from an API or local assets
+    setStrokeOrder([
+      '../../assets/images/stroke1.png',
+      '../../assets/images/stroke2.png',
+      '../../assets/images/stroke3.png',
+    ]);
+    
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+    
+    // 清理音频
+    return () => {
+      audioService.unloadSound();
+    };
+  }, []);
+
+  // Play sound function
+  const playSound = async () => {
+    if (isPlaying) return;
+    
+    try {
+      // 显示正在尝试播放的音频信息
+      console.log(`尝试播放音频: (${type}/${audio})`);
+      
+      setIsPlaying(true);
+      
+      // 执行缩放动画
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        })
+      ]).start();
+      
+      // 使用AudioService播放音频
+      await audioService.playSound(audio);
+      
+      // 音频播放完成后重置状态
+      setTimeout(() => {
+        setIsPlaying(false);
+      }, 2000); // 假设音频时长为2秒左右
+    } catch (error) {
+      console.error('播放音频时出错:', error);
+      setIsPlaying(false);
+    }
+  };
+
+  // Memory cleanup
+  useEffect(() => {
+    return () => {
+      audioService.unloadSound();
+    };
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={[
-          styles.kanaContainer, 
-          type === 'hiragana' ? styles.hiraganaContainer : styles.katakanaContainer
-        ]}>
-          <Animated.Text 
-            style={[
-              styles.kanaText,
-              { transform: [{ scale: scaleAnim }] }
-            ]}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView style={styles.scrollView}>
+        <Animated.View style={{ ...styles.header, opacity: fadeAnim }}>
+          <TouchableOpacity 
+            activeOpacity={0.7} 
+            onPress={playSound}
+            disabled={isPlaying}
           >
-            {kana}
-          </Animated.Text>
-          <Text style={styles.romajiText}>{romaji}</Text>
+            <Animated.View 
+              style={[
+                styles.kanaCard, 
+                { 
+                  backgroundColor: theme.card, 
+                  borderColor: theme.border,
+                  borderWidth: 2,
+                  transform: [{ scale: scaleAnim }]
+                }
+              ]}
+            >
+              <Text style={[styles.kanaText, { color: theme.text }]}>{kana}</Text>
+              <Text style={[styles.romajiText, { color: theme.subText }]}>{romaji}</Text>
+              {isPlaying && (
+                <View style={styles.playingIndicator}>
+                  <Ionicons name="volume-high" size={24} color={type === 'hiragana' ? theme.hiraganaColor : theme.katakanaColor} />
+                </View>
+              )}
+            </Animated.View>
+          </TouchableOpacity>
+          <Text style={[styles.tapHint, { color: theme.subText }]}>
+            点击卡片播放发音
+          </Text>
+        </Animated.View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>笔画顺序</Text>
+          <View style={[styles.strokeOrderContainer, { backgroundColor: theme.card }]}>
+            {strokeOrder.map((stroke, index) => (
+              <View key={index} style={styles.strokeImageContainer}>
+                <Text style={[styles.strokeNumber, { color: theme.subText }]}>{index + 1}</Text>
+                <View style={[styles.strokeImageBox, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  {/* In a real app, you'd load actual images */}
+                  <Text style={[styles.strokeImagePlaceholder, { color: theme.subText }]}>
+                    笔画 {index + 1}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
         
-        <TouchableOpacity 
-          style={[
-            styles.playButton,
-            isPlaying ? styles.playingButton : null,
-            type === 'hiragana' ? styles.hiraganaPlayButton : styles.katakanaPlayButton
-          ]}
-          onPress={playSound}
-          disabled={isPlaying}
-        >
-          <Text style={styles.playButtonText}>
-            {isPlaying ? '播放中...' : '点击播放发音'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoTitle}>示例单词</Text>
-          <View style={styles.exampleContainer}>
-            <Text style={styles.exampleWord}>{exampleWord.word}</Text>
-            <Text style={styles.exampleMeaning}>{exampleWord.meaning}</Text>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>示例单词</Text>
+          <View style={[styles.examplesContainer, { backgroundColor: theme.card }]}>
+            <View style={[styles.exampleItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.exampleKana, { color: theme.text }]}>
+                {type === 'hiragana' ? 'あい' : 'アイ'}{kana}
+              </Text>
+              <Text style={[styles.exampleRomaji, { color: theme.subText }]}>
+                {romaji}i{romaji}a
+              </Text>
+              <Text style={[styles.exampleMeaning, { color: theme.text }]}>爱</Text>
+            </View>
+            
+            <View style={[styles.exampleItem, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.exampleKana, { color: theme.text }]}>
+                {kana}{type === 'hiragana' ? 'き' : 'キ'}
+              </Text>
+              <Text style={[styles.exampleRomaji, { color: theme.subText }]}>
+                {romaji}aki
+              </Text>
+              <Text style={[styles.exampleMeaning, { color: theme.text }]}>秋天</Text>
           </View>
           
-          <Text style={styles.infoTitle}>书写顺序</Text>
-          <View style={styles.strokeOrderContainer}>
-            <Text style={styles.strokeOrderText}>
-              请按照箭头指示练习书写
+            <View style={styles.exampleItem}>
+              <Text style={[styles.exampleKana, { color: theme.text }]}>
+                {type === 'hiragana' ? 'いち' : 'イチ'}{kana}
+              </Text>
+              <Text style={[styles.exampleRomaji, { color: theme.subText }]}>
+                ichi{romaji}
             </Text>
-            {/* Here would be a stroke order animation or image */}
-            <View style={styles.strokeOrderPlaceholder}>
-              <Text style={styles.placeholderText}>笔顺动画</Text>
+              <Text style={[styles.exampleMeaning, { color: theme.text }]}>一个</Text>
+            </View>
             </View>
           </View>
           
-          <Text style={styles.infoTitle}>发音提示</Text>
-          <Text style={styles.pronunciationTip}>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>相关信息</Text>
+          <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
+            <Text style={[styles.infoText, { color: theme.text }]}>
+              「{kana}」是{type === 'hiragana' ? '平假名' : '片假名'}的一个字符，发音为 "{romaji}"。
             {type === 'hiragana' 
-              ? '平假名的发音注重口型和舌头位置'
-              : '片假名的发音与对应的平假名相同'}
+                ? '平假名主要用于表示日语的语法成分和本土日语词汇。' 
+                : '片假名主要用于外来语和表示强调的词语。'}
           </Text>
         </View>
       </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -149,144 +201,147 @@ const CharDetailScreen = ({ navigation, route }: CharDetailScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 20,
-    alignItems: 'center',
   },
-  kanaContainer: {
+  header: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  kanaCard: {
     width: width * 0.5,
     height: width * 0.5,
-    borderRadius: width * 0.25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    marginBottom: 5,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 3,
+      height: 4,
     },
-    shadowOpacity: 0.27,
-    shadowRadius: 4.65,
-    elevation: 6,
-  },
-  hiraganaContainer: {
-    backgroundColor: '#E3F2FD',
-    borderWidth: 3,
-    borderColor: '#4A86E8',
-  },
-  katakanaContainer: {
-    backgroundColor: '#FFF3E0',
-    borderWidth: 3,
-    borderColor: '#E67C73',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+    position: 'relative',
   },
   kanaText: {
     fontSize: 80,
     fontWeight: 'bold',
-    color: '#333',
   },
   romajiText: {
     fontSize: 24,
-    color: '#666',
     marginTop: 10,
   },
-  playButton: {
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginBottom: 30,
+  tapHint: {
+    fontSize: 16,
+    marginTop: 10,
+    opacity: 0.7,
+  },
+  section: {
+    marginHorizontal: 20,
+    marginVertical: 15,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  strokeOrderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 15,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  hiraganaPlayButton: {
-    backgroundColor: '#4A86E8',
+  strokeImageContainer: {
+    alignItems: 'center',
   },
-  katakanaPlayButton: {
-    backgroundColor: '#E67C73',
+  strokeNumber: {
+    fontSize: 14,
+    marginBottom: 5,
   },
-  playingButton: {
-    opacity: 0.8,
+  strokeImageBox: {
+    width: 70,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
   },
-  playButtonText: {
-    color: 'white',
+  strokeImagePlaceholder: {
+    fontSize: 12,
+  },
+  examplesContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  exampleItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+  },
+  exampleKana: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  infoContainer: {
-    width: '100%',
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
+  exampleRomaji: {
+    fontSize: 14,
+    marginVertical: 4,
+  },
+  exampleMeaning: {
+    fontSize: 16,
+  },
+  infoCard: {
+    padding: 15,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  infoText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  playingIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 1,
     },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-    elevation: 3,
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-    marginTop: 15,
-  },
-  exampleContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 5,
-  },
-  exampleWord: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  exampleMeaning: {
-    fontSize: 16,
-    color: '#666',
-  },
-  strokeOrderContainer: {
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  strokeOrderText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 10,
-  },
-  strokeOrderPlaceholder: {
-    width: width * 0.7,
-    height: 100,
-    backgroundColor: '#eee',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  placeholderText: {
-    color: '#999',
-    fontSize: 16,
-  },
-  pronunciationTip: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 22,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });
 

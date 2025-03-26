@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,11 +6,15 @@ import {
   TouchableOpacity, 
   SafeAreaView,
   ScrollView,
-  FlatList
+  FlatList,
+  Alert
 } from 'react-native';
+import { Audio } from 'expo-av';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { katakanaData, katakanaRows, katakanaColumns } from '../data/katakana';
+import { useTheme } from '../context/ThemeContext';
+import AudioService from '../services/AudioService';
 
 type KatakanaChartScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'KatakanaChart'>;
@@ -18,12 +22,36 @@ type KatakanaChartScreenProps = {
 
 const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
+  const audioService = AudioService.getInstance();
+  const { theme } = useTheme();
+
+  // 组件卸载时清理音频资源
+  useEffect(() => {
+    return () => {
+      audioService.unloadSound();
+    };
+  }, []);
 
   const handleSelectRow = (row: string) => {
     setSelectedRow(row === selectedRow ? null : row);
   };
 
+  // Play sound function
+  const playSound = async (audio: string) => {
+    try {
+      await audioService.playSound(audio);
+    } catch (error) {
+      console.error('播放音频失败:', error);
+    }
+  };
+
   const handleKanaPress = (kana: string, romaji: string, audio: string) => {
+    // Single tap - Play sound
+    playSound(audio);
+  };
+  
+  const handleKanaLongPress = (kana: string, romaji: string, audio: string) => {
+    // Long press - Navigate to detail
     navigation.navigate('CharDetail', {
       kana,
       romaji,
@@ -36,8 +64,8 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
     <View style={styles.chartHeaderRow}>
       <View style={styles.emptyCell} />
       {katakanaColumns.map((column) => (
-        <View key={column} style={styles.headerCell}>
-          <Text style={styles.headerText}>{column}</Text>
+        <View key={column} style={[styles.headerCell, { backgroundColor: theme.card }]}>
+          <Text style={[styles.headerText, { color: theme.text }]}>{column}</Text>
         </View>
       ))}
     </View>
@@ -48,13 +76,13 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
     return (
       <View key={row} style={[
         styles.chartRow,
-        selectedRow === row && styles.selectedRow
+        selectedRow === row && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(245, 54, 92, 0.1)' : 'rgba(245, 54, 92, 0.1)' }]
       ]}>
         <TouchableOpacity 
-          style={styles.rowHeaderCell}
+          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
           onPress={() => handleSelectRow(row)}
         >
-          <Text style={styles.rowHeaderText}>{row}</Text>
+          <Text style={[styles.rowHeaderText, { color: theme.text }]}>{row}</Text>
         </TouchableOpacity>
         
         {katakanaColumns.map(column => {
@@ -65,11 +93,19 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
           return (
             <TouchableOpacity
               key={`${row}-${column}`}
-              style={styles.kanaCell}
+              style={[
+                styles.kanaCell, 
+                { 
+                  backgroundColor: theme.background,
+                  borderColor: theme.border
+                }
+              ]}
               onPress={() => handleKanaPress(char.kana, char.romaji, char.audio)}
+              onLongPress={() => handleKanaLongPress(char.kana, char.romaji, char.audio)}
+              delayLongPress={500}
             >
-              <Text style={styles.kanaText}>{char.kana}</Text>
-              <Text style={styles.romajiText}>{char.romaji}</Text>
+              <Text style={[styles.kanaText, { color: theme.text }]}>{char.kana}</Text>
+              <Text style={[styles.romajiText, { color: theme.subText }]}>{char.romaji}</Text>
             </TouchableOpacity>
           );
         })}
@@ -84,13 +120,13 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
     return (
       <View key={row} style={[
         styles.chartRow,
-        selectedRow === row && styles.selectedRow
+        selectedRow === row && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(245, 54, 92, 0.1)' : 'rgba(245, 54, 92, 0.1)' }]
       ]}>
         <TouchableOpacity 
-          style={styles.rowHeaderCell}
+          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
           onPress={() => handleSelectRow(row)}
         >
-          <Text style={styles.rowHeaderText}>{row}</Text>
+          <Text style={[styles.rowHeaderText, { color: theme.text }]}>{row}</Text>
         </TouchableOpacity>
         
         {katakanaColumns.map(column => {
@@ -101,11 +137,19 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
           return (
             <TouchableOpacity
               key={`${row}-${char.column}`}
-              style={styles.kanaCell}
+              style={[
+                styles.kanaCell, 
+                { 
+                  backgroundColor: theme.background,
+                  borderColor: theme.border
+                }
+              ]}
               onPress={() => handleKanaPress(char.kana, char.romaji, char.audio)}
+              onLongPress={() => handleKanaLongPress(char.kana, char.romaji, char.audio)}
+              delayLongPress={500}
             >
-              <Text style={styles.kanaText}>{char.kana}</Text>
-              <Text style={styles.romajiText}>{char.romaji}</Text>
+              <Text style={[styles.kanaText, { color: theme.text }]}>{char.kana}</Text>
+              <Text style={[styles.romajiText, { color: theme.subText }]}>{char.romaji}</Text>
             </TouchableOpacity>
           );
         })}
@@ -120,40 +164,47 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
     return (
       <View key="ン" style={[
         styles.chartRow,
-        selectedRow === 'ン' && styles.selectedRow
+        selectedRow === 'ン' && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(245, 54, 92, 0.1)' : 'rgba(245, 54, 92, 0.1)' }]
       ]}>
         <TouchableOpacity 
-          style={styles.rowHeaderCell}
+          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
           onPress={() => handleSelectRow('ン')}
         >
-          <Text style={styles.rowHeaderText}>ン</Text>
+          <Text style={[styles.rowHeaderText, { color: theme.text }]}>ン</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.kanaCell, styles.nCell]}
+          style={[
+            styles.kanaCell, 
+            { 
+              backgroundColor: theme.background,
+              borderColor: theme.border
+            }
+          ]}
           onPress={() => handleKanaPress(nChar.kana, nChar.romaji, nChar.audio)}
+          onLongPress={() => handleKanaLongPress(nChar.kana, nChar.romaji, nChar.audio)}
+          delayLongPress={500}
         >
-          <Text style={styles.kanaText}>{nChar.kana}</Text>
-          <Text style={styles.romajiText}>{nChar.romaji}</Text>
+          <Text style={[styles.kanaText, { color: theme.text }]}>{nChar.kana}</Text>
+          <Text style={[styles.romajiText, { color: theme.subText }]}>{nChar.romaji}</Text>
         </TouchableOpacity>
         
-        <View style={styles.emptyCell} />
-        <View style={styles.emptyCell} />
-        <View style={styles.emptyCell} />
-        <View style={styles.emptyCell} />
+        {katakanaColumns.slice(1).map(column => (
+          <View key={`ン-${column}`} style={styles.emptyCell} />
+        ))}
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>片假名表</Text>
-          <Text style={styles.headerSubtitle}>点击假名查看详情和听读音</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>片假名表</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.subText }]}>点击发音，长按查看详情</Text>
         </View>
         
-        <View style={styles.chartContainer}>
+        <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
           {renderChartHeader()}
           
           {katakanaRows.map(row => {
@@ -167,9 +218,9 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
           })}
         </View>
         
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoText}>
-            片假名是日语假名的一种，与平假名和汉字一起构成日语的书写系统。片假名主要用于外来语、外国地名和人名、拟声词和拟态词，以及需要强调的词语。
+        <View style={[styles.infoContainer, { backgroundColor: theme.card }]}>
+          <Text style={[styles.infoText, { color: theme.text }]}>
+            片假名是日语假名的一种，与平假名和汉字一起构成日语的书写系统。片假名主要用于标记外来语、拟声词、专业术语以及强调某些单词。
           </Text>
         </View>
       </ScrollView>
@@ -180,7 +231,6 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   scrollView: {
     flex: 1,
@@ -192,16 +242,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 5,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
   },
   chartContainer: {
     margin: 10,
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 5,
     shadowColor: '#000',
@@ -215,10 +262,7 @@ const styles = StyleSheet.create({
   },
   chartHeaderRow: {
     flexDirection: 'row',
-    marginBottom: 5,
     paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   emptyCell: {
     flex: 1,
@@ -229,22 +273,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
+    height: 60,
     margin: 2,
-    backgroundColor: '#f0f0f0',
     borderRadius: 8,
   },
   headerText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#555',
   },
   chartRow: {
     flexDirection: 'row',
     paddingVertical: 2,
   },
   selectedRow: {
-    backgroundColor: 'rgba(230, 124, 115, 0.1)',
     borderRadius: 8,
   },
   rowHeaderCell: {
@@ -253,13 +294,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 60,
     margin: 2,
-    backgroundColor: '#f0f0f0',
     borderRadius: 8,
   },
   rowHeaderText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#555',
   },
   kanaCell: {
     flex: 1,
@@ -267,32 +306,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 60,
     margin: 2,
-    backgroundColor: '#FFFAF0',
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FAE7E0',
-  },
-  nCell: {
-    flex: 2,
+    borderRadius: 8,
   },
   kanaText: {
-    fontSize: 24,
-    color: '#333',
+    fontSize: 22,
     fontWeight: 'bold',
   },
   romajiText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
+    fontSize: 12,
   },
   infoContainer: {
-    padding: 20,
-    marginBottom: 20,
+    margin: 15,
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   infoText: {
-    fontSize: 15,
-    color: '#555',
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 
