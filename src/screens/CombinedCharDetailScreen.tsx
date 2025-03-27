@@ -6,12 +6,9 @@ import {
   TouchableOpacity, 
   SafeAreaView,
   ScrollView,
-  Image,
   Animated,
-  Dimensions,
-  Alert
+  Dimensions
 } from 'react-native';
-import { Audio } from 'expo-av';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -22,12 +19,12 @@ import { getHiraganaExamples } from '../data/hiraganaExamples';
 import { getKatakanaExamples } from '../data/katakanaExamples';
 import { ExampleWord } from '../data/hiraganaExamples';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'CharDetail'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'CombinedCharDetail'>;
 
 const { width } = Dimensions.get('window');
 
-const CharDetailScreen = ({ route, navigation }: Props) => {
-  const { kana, romaji, audio, type } = route.params;
+const CombinedCharDetailScreen = ({ route, navigation }: Props) => {
+  const { hiragana, katakana, romaji, audio } = route.params;
   const [isPlaying, setIsPlaying] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -46,15 +43,14 @@ const CharDetailScreen = ({ route, navigation }: Props) => {
     return () => {
       audioService.unloadSound();
     };
-  }, [kana]);
+  }, [hiragana, katakana]);
 
-  // Play sound function
+  // 播放音频
   const playSound = async () => {
     if (isPlaying) return;
     
     try {
-      // 显示正在尝试播放的音频信息
-      console.log(`尝试播放音频: (${type}/${audio})`);
+      console.log(`尝试播放音频: ${audio}`);
       
       setIsPlaying(true);
       
@@ -85,78 +81,16 @@ const CharDetailScreen = ({ route, navigation }: Props) => {
     }
   };
 
-  // Memory cleanup
+  // 内存清理
   useEffect(() => {
     return () => {
       audioService.unloadSound();
     };
   }, []);
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView style={styles.scrollView}>
-        <Animated.View style={{ ...styles.header, opacity: fadeAnim }}>
-          <TouchableOpacity 
-            activeOpacity={0.7} 
-            onPress={playSound}
-            disabled={isPlaying}
-          >
-            <Animated.View 
-              style={[
-                styles.kanaCard, 
-                { 
-                  backgroundColor: theme.card, 
-                  borderColor: theme.border,
-                  borderWidth: 2,
-                  transform: [{ scale: scaleAnim }]
-                }
-              ]}
-            >
-              <Text style={[styles.kanaText, { color: theme.text }]}>{kana}</Text>
-              <Text style={[styles.romajiText, { color: theme.subText }]}>{romaji}</Text>
-              {isPlaying && (
-                <View style={styles.playingIndicator}>
-                  <Ionicons name="volume-high" size={24} color={type === 'hiragana' ? theme.hiraganaColor : theme.katakanaColor} />
-                </View>
-              )}
-            </Animated.View>
-          </TouchableOpacity>
-          <Text style={[styles.tapHint, { color: theme.subText }]}>
-            点击卡片播放发音
-          </Text>
-        </Animated.View>
-        
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>笔画顺序</Text>
-          <View style={[styles.strokeOrderContainer, { backgroundColor: theme.card }]}>
-            <StrokeOrderImage kana={kana} size={width * 0.7} />
-          </View>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>示例单词</Text>
-          <View style={[styles.examplesContainer, { backgroundColor: theme.card }]}>
-            {renderExamples()}
-          </View>
-        </View>
-        
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>相关信息</Text>
-          <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
-            <Text style={[styles.infoText, { color: theme.text }]}>
-              「{kana}」是{type === 'hiragana' ? '平假名' : '片假名'}的一个字符，发音为 "{romaji}"。
-            {type === 'hiragana' 
-                ? '平假名主要用于表示日语的语法成分和本土日语词汇。' 
-                : '片假名主要用于外来语和表示强调的词语。'}
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-  
-  // 获取并显示示例单词
-  function renderExamples() {
+  // 渲染示例单词
+  const renderExamples = (type: 'hiragana' | 'katakana') => {
+    const kana = type === 'hiragana' ? hiragana : katakana;
     const examples: ExampleWord[] = type === 'hiragana' 
       ? getHiraganaExamples(kana) 
       : getKatakanaExamples(kana);
@@ -190,7 +124,109 @@ const CharDetailScreen = ({ route, navigation }: Props) => {
         </Text>
       </View>
     ));
-  }
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView style={styles.scrollView}>
+        <Animated.View style={{ ...styles.header, opacity: fadeAnim }}>
+          <TouchableOpacity 
+            activeOpacity={0.7} 
+            onPress={playSound}
+            disabled={isPlaying}
+          >
+            <Animated.View 
+              style={[
+                styles.kanaCard, 
+                { 
+                  backgroundColor: theme.card, 
+                  borderColor: theme.border,
+                  borderWidth: 2,
+                  transform: [{ scale: scaleAnim }]
+                }
+              ]}
+            >
+              <View style={styles.kanaContainer}>
+                <View style={styles.kanaWrapper}>
+                  <Text style={[styles.kanaText, { color: theme.text }]}>
+                    {hiragana}
+                  </Text>
+                  <Text style={[styles.kanaTypeText, { color: theme.subText }]}>
+                    平假名
+                  </Text>
+                </View>
+                
+                <View style={styles.kanaWrapper}>
+                  <Text style={[styles.kanaText, { color: theme.text }]}>
+                    {katakana}
+                  </Text>
+                  <Text style={[styles.kanaTypeText, { color: theme.subText }]}>
+                    片假名
+                  </Text>
+                </View>
+              </View>
+              
+              <Text style={[styles.romajiText, { color: theme.subText }]}>
+                {romaji}
+              </Text>
+
+              {isPlaying && (
+                <View style={styles.playingIndicator}>
+                  <Ionicons name="volume-high" size={24} color={theme.text} />
+                </View>
+              )}
+            </Animated.View>
+          </TouchableOpacity>
+          <Text style={[styles.tapHint, { color: theme.subText }]}>
+            点击卡片播放发音
+          </Text>
+        </Animated.View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>笔画顺序</Text>
+          <View style={styles.strokeOrderRow}>
+            <View style={[styles.strokeOrderContainer, { backgroundColor: theme.card }]}>
+              <Text style={[styles.strokeOrderTitle, { color: theme.subText }]}>
+                平假名
+              </Text>
+              <StrokeOrderImage kana={hiragana} size={width * 0.4} />
+            </View>
+            
+            <View style={[styles.strokeOrderContainer, { backgroundColor: theme.card }]}>
+              <Text style={[styles.strokeOrderTitle, { color: theme.subText }]}>
+                片假名
+              </Text>
+              <StrokeOrderImage kana={katakana} size={width * 0.4} />
+            </View>
+          </View>
+        </View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>平假名示例单词</Text>
+          <View style={[styles.examplesContainer, { backgroundColor: theme.card }]}>
+            {renderExamples('hiragana')}
+          </View>
+        </View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>片假名示例单词</Text>
+          <View style={[styles.examplesContainer, { backgroundColor: theme.card }]}>
+            {renderExamples('katakana')}
+          </View>
+        </View>
+        
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>相关信息</Text>
+          <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
+            <Text style={[styles.infoText, { color: theme.text }]}>
+              「{hiragana}」是平假名，「{katakana}」是片假名，两者发音相同，为 "{romaji}"。
+              平假名主要用于表示日语的语法成分和本土日语词汇，而片假名主要用于外来语和特殊强调的词语。
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -205,7 +241,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   kanaCard: {
-    width: width * 0.5,
+    width: width * 0.8,
     height: width * 0.5,
     justifyContent: 'center',
     alignItems: 'center',
@@ -221,10 +257,27 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
     position: 'relative',
+    padding: 10,
+  },
+  kanaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  kanaWrapper: {
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 10,
   },
   kanaText: {
-    fontSize: 80,
+    fontSize: 60,
     fontWeight: 'bold',
+  },
+  kanaTypeText: {
+    fontSize: 12,
+    marginTop: 4,
   },
   romajiText: {
     fontSize: 24,
@@ -234,6 +287,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     opacity: 0.7,
+    textAlign: 'center',
   },
   section: {
     marginHorizontal: 20,
@@ -244,7 +298,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  strokeOrderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   strokeOrderContainer: {
+    width: width * 0.43,
     padding: 15,
     borderRadius: 12,
     shadowColor: '#000',
@@ -256,6 +315,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     alignItems: 'center',
+  },
+  strokeOrderTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
   examplesContainer: {
     borderRadius: 12,
@@ -275,10 +339,11 @@ const styles = StyleSheet.create({
   exampleKana: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 5,
   },
   exampleRomaji: {
     fontSize: 14,
-    marginVertical: 4,
+    marginBottom: 5,
   },
   exampleMeaning: {
     fontSize: 16,
@@ -320,4 +385,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CharDetailScreen; 
+export default CombinedCharDetailScreen; 

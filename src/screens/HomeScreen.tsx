@@ -8,6 +8,7 @@ import {
   StatusBar,
   Platform
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
@@ -65,6 +66,21 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
               { 
                 backgroundColor: theme.isDark 
                   ? theme.buttonBackground 
+                  : theme.combinedColor 
+              }
+            ]} 
+            onPress={() => navigation.navigate('CombinedKana')}
+          >
+            <Text style={[styles.buttonText, { color: theme.text }]}>平片假名对照</Text>
+            <Text style={[styles.buttonSubtext, { color: theme.isDark ? theme.subText : 'rgba(255, 255, 255, 0.8)' }]}>あ/ア い/イ う/ウ</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.button, 
+              { 
+                backgroundColor: theme.isDark 
+                  ? theme.buttonBackground 
                   : theme.quizColor 
               }
             ]} 
@@ -79,6 +95,14 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           <Text style={[styles.footerText, { color: theme.subText }]}>
             五十音图是学习日语的基础，包含平假名和片假名两套音标系统
           </Text>
+          
+          <TouchableOpacity 
+            style={[styles.aboutButton, { backgroundColor: theme.isDark ? 'rgba(100, 100, 100, 0.2)' : 'rgba(200, 200, 200, 0.3)' }]}
+            onPress={() => navigation.navigate('About')}
+          >
+            <Ionicons name="information-circle-outline" size={18} color={theme.text} />
+            <Text style={[styles.aboutButtonText, { color: theme.text }]}>关于应用</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -152,6 +176,19 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     textAlign: 'center',
+    marginBottom: 15,
+  },
+  aboutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  aboutButtonText: {
+    fontSize: 14,
+    marginLeft: 5,
   },
 });
 

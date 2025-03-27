@@ -73,7 +73,7 @@ const AboutScreen = () => {
         </View>
         
         <Text style={[styles.copyright, { color: theme.subText }]}>
-          © 2023 五十音学习应用 保留所有权利
+          © 2025 五十音学习应用 保留所有权利
         </Text>
       </ScrollView>
     </SafeAreaView>

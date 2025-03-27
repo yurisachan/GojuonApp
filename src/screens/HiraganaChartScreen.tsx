@@ -60,17 +60,6 @@ const HiraganaChartScreen = ({ navigation }: HiraganaChartScreenProps) => {
     });
   };
 
-  const renderChartHeader = () => (
-    <View style={styles.chartHeaderRow}>
-      <View style={styles.emptyCell} />
-      {hiraganaColumns.map((column) => (
-        <View key={column} style={[styles.headerCell, { backgroundColor: theme.card }]}>
-          <Text style={[styles.headerText, { color: theme.text }]}>{column}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
   const renderChartRow = (row: string) => {
     const rowChars = hiraganaData.filter(char => char.row === row);
     return (
@@ -78,13 +67,6 @@ const HiraganaChartScreen = ({ navigation }: HiraganaChartScreenProps) => {
         styles.chartRow,
         selectedRow === row && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(76, 111, 255, 0.1)' : 'rgba(94, 114, 228, 0.1)' }]
       ]}>
-        <TouchableOpacity 
-          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
-          onPress={() => handleSelectRow(row)}
-        >
-          <Text style={[styles.rowHeaderText, { color: theme.text }]}>{row}</Text>
-        </TouchableOpacity>
-        
         {hiraganaColumns.map(column => {
           const char = rowChars.find(c => c.column === column);
           if (!char) {
@@ -122,13 +104,6 @@ const HiraganaChartScreen = ({ navigation }: HiraganaChartScreenProps) => {
         styles.chartRow,
         selectedRow === row && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(76, 111, 255, 0.1)' : 'rgba(94, 114, 228, 0.1)' }]
       ]}>
-        <TouchableOpacity 
-          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
-          onPress={() => handleSelectRow(row)}
-        >
-          <Text style={[styles.rowHeaderText, { color: theme.text }]}>{row}</Text>
-        </TouchableOpacity>
-        
         {hiraganaColumns.map(column => {
           const char = rowChars.find(c => c.column === column);
           if (!char) {
@@ -166,13 +141,6 @@ const HiraganaChartScreen = ({ navigation }: HiraganaChartScreenProps) => {
         styles.chartRow,
         selectedRow === 'ん' && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(76, 111, 255, 0.1)' : 'rgba(94, 114, 228, 0.1)' }]
       ]}>
-        <TouchableOpacity 
-          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
-          onPress={() => handleSelectRow('ん')}
-        >
-          <Text style={[styles.rowHeaderText, { color: theme.text }]}>ん</Text>
-        </TouchableOpacity>
-        
         <TouchableOpacity
           style={[
             styles.kanaCell, 
@@ -205,8 +173,6 @@ const HiraganaChartScreen = ({ navigation }: HiraganaChartScreenProps) => {
         </View>
         
         <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
-          {renderChartHeader()}
-          
           {hiraganaRows.map(row => {
             if (row === 'や' || row === 'わ') {
               return renderSpecialRow(row);
@@ -260,27 +226,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  chartHeaderRow: {
-    flexDirection: 'row',
-    paddingVertical: 5,
-  },
-  emptyCell: {
-    flex: 1,
-    height: 60,
-    margin: 2,
-  },
-  headerCell: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 60,
-    margin: 2,
-    borderRadius: 8,
-  },
-  headerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   chartRow: {
     flexDirection: 'row',
     paddingVertical: 2,
@@ -288,17 +233,10 @@ const styles = StyleSheet.create({
   selectedRow: {
     borderRadius: 8,
   },
-  rowHeaderCell: {
+  emptyCell: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     height: 60,
     margin: 2,
-    borderRadius: 8,
-  },
-  rowHeaderText: {
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   kanaCell: {
     flex: 1,

@@ -6,21 +6,30 @@ import ThemeToggleButton from '../components/ThemeToggleButton';
 import HomeScreen from '../screens/HomeScreen';
 import HiraganaChartScreen from '../screens/HiraganaChartScreen';
 import KatakanaChartScreen from '../screens/KatakanaChartScreen';
+import CombinedKanaScreen from '../screens/CombinedKanaScreen';
 import QuizScreen from '../screens/QuizScreen';
 import CharDetailScreen from '../screens/CharDetailScreen';
 import AboutScreen from '../screens/AboutScreen';
+import CombinedCharDetailScreen from '../screens/CombinedCharDetailScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   HiraganaChart: undefined;
   KatakanaChart: undefined;
+  CombinedKana: undefined;
   CharDetail: {
     kana: string;
     romaji: string;
     audio: string;
     type: 'hiragana' | 'katakana';
   };
-  Quiz: { mode: 'hiragana' | 'katakana' | 'both' };
+  CombinedCharDetail: {
+    hiragana: string;
+    katakana: string;
+    romaji: string;
+    audio: string;
+  };
+  Quiz: undefined;
   About: undefined;
 };
 
@@ -62,14 +71,24 @@ const AppNavigator = () => {
         options={{ title: '片假名' }} 
       />
       <Stack.Screen 
-        name="Quiz" 
-        component={QuizScreen} 
-        options={{ title: '假名测试' }} 
+        name="CombinedKana" 
+        component={CombinedKanaScreen} 
+        options={{ title: '平片假名对照' }} 
       />
       <Stack.Screen 
         name="CharDetail" 
         component={CharDetailScreen} 
         options={{ title: '假名详情' }} 
+      />
+      <Stack.Screen 
+        name="CombinedCharDetail" 
+        component={CombinedCharDetailScreen} 
+        options={{ title: '假名对照详情' }} 
+      />
+      <Stack.Screen 
+        name="Quiz" 
+        component={QuizScreen} 
+        options={{ title: '假名测试' }} 
       />
       <Stack.Screen 
         name="About" 

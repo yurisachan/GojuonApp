@@ -60,17 +60,6 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
     });
   };
 
-  const renderChartHeader = () => (
-    <View style={styles.chartHeaderRow}>
-      <View style={styles.emptyCell} />
-      {katakanaColumns.map((column) => (
-        <View key={column} style={[styles.headerCell, { backgroundColor: theme.card }]}>
-          <Text style={[styles.headerText, { color: theme.text }]}>{column}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
   const renderChartRow = (row: string) => {
     const rowChars = katakanaData.filter(char => char.row === row);
     return (
@@ -78,13 +67,6 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
         styles.chartRow,
         selectedRow === row && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(245, 54, 92, 0.1)' : 'rgba(245, 54, 92, 0.1)' }]
       ]}>
-        <TouchableOpacity 
-          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
-          onPress={() => handleSelectRow(row)}
-        >
-          <Text style={[styles.rowHeaderText, { color: theme.text }]}>{row}</Text>
-        </TouchableOpacity>
-        
         {katakanaColumns.map(column => {
           const char = rowChars.find(c => c.column === column);
           if (!char) {
@@ -122,13 +104,6 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
         styles.chartRow,
         selectedRow === row && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(245, 54, 92, 0.1)' : 'rgba(245, 54, 92, 0.1)' }]
       ]}>
-        <TouchableOpacity 
-          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
-          onPress={() => handleSelectRow(row)}
-        >
-          <Text style={[styles.rowHeaderText, { color: theme.text }]}>{row}</Text>
-        </TouchableOpacity>
-        
         {katakanaColumns.map(column => {
           const char = rowChars.find(c => c.column === column);
           if (!char) {
@@ -166,13 +141,6 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
         styles.chartRow,
         selectedRow === 'ン' && [styles.selectedRow, { backgroundColor: theme.isDark ? 'rgba(245, 54, 92, 0.1)' : 'rgba(245, 54, 92, 0.1)' }]
       ]}>
-        <TouchableOpacity 
-          style={[styles.rowHeaderCell, { backgroundColor: theme.card }]}
-          onPress={() => handleSelectRow('ン')}
-        >
-          <Text style={[styles.rowHeaderText, { color: theme.text }]}>ン</Text>
-        </TouchableOpacity>
-        
         <TouchableOpacity
           style={[
             styles.kanaCell, 
@@ -205,8 +173,6 @@ const KatakanaChartScreen = ({ navigation }: KatakanaChartScreenProps) => {
         </View>
         
         <View style={[styles.chartContainer, { backgroundColor: theme.card }]}>
-          {renderChartHeader()}
-          
           {katakanaRows.map(row => {
             if (row === 'ヤ' || row === 'ワ') {
               return renderSpecialRow(row);
