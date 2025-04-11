@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+// CombinedCharDetailScreen - 展示平假名和片假名的对照详情
 import { 
   View, 
   Text, 

@@ -11,12 +11,16 @@ import QuizScreen from '../screens/QuizScreen';
 import CharDetailScreen from '../screens/CharDetailScreen';
 import AboutScreen from '../screens/AboutScreen';
 import CombinedCharDetailScreen from '../screens/CombinedCharDetailScreen';
+import DakutenChartScreen from '../screens/DakutenChartScreen';
+import YoonChartScreen from '../screens/YoonChartScreen';
 
 export type RootStackParamList = {
   Home: undefined;
   HiraganaChart: undefined;
   KatakanaChart: undefined;
   CombinedKana: undefined;
+  DakutenChart: undefined;
+  YoonChart: undefined;
   CharDetail: {
     kana: string;
     romaji: string;
@@ -74,6 +78,16 @@ const AppNavigator = () => {
         name="CombinedKana" 
         component={CombinedKanaScreen} 
         options={{ title: '平片假名对照' }} 
+      />
+      <Stack.Screen 
+        name="DakutenChart" 
+        component={DakutenChartScreen} 
+        options={{ title: '浊音/半浊音' }} 
+      />
+      <Stack.Screen 
+        name="YoonChart" 
+        component={YoonChartScreen} 
+        options={{ title: '拗音' }} 
       />
       <Stack.Screen 
         name="CharDetail" 

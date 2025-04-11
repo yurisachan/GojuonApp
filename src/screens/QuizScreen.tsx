@@ -12,21 +12,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { hiraganaData } from '../data/hiragana';
 import { katakanaData } from '../data/katakana';
+import { hiraganaDakutenData, katakanaDakutenData } from '../data/dakutenData';
+import { hiraganaYoonData, katakanaYoonData } from '../data/yoonData';
+import { vocabularyData } from '../data/vocabularyData';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+
+type QuizType = 'hiragana' | 'katakana' | 'both' | 'dakuten' | 'yoon' | 'vocabulary' | null;
 
 type Question = {
   kana: string;
   romaji: string;
   options: string[];
-  type: 'hiragana' | 'katakana';
+  type: 'hiragana' | 'katakana' | 'dakuten' | 'yoon' | 'vocabulary';
+  subType?: 'hiragana' | 'katakana'; // 添加可选的子类型
+  meaning?: string; // 词汇题目包含含义
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Quiz'>;
 
 const QuizScreen = ({ route }: Props) => {
-  const { mode } = route.params;
-  const [quizMode, setQuizMode] = useState<'hiragana' | 'katakana' | 'both' | null>(mode || null);
+  const { mode } = route.params || { mode: null };
+  const [quizMode, setQuizMode] = useState<QuizType>(mode || null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -42,21 +49,73 @@ const QuizScreen = ({ route }: Props) => {
     }
   }, []);
 
+  // 从拗音数据中提取问题
+  const extractYoonQuestions = () => {
+    const hiraItems = hiraganaYoonData.flatMap(group => 
+      group.items.map(item => ({ 
+        ...item, 
+        type: 'yoon' as const,
+        subType: 'hiragana' as const 
+      }))
+    );
+    
+    const kataItems = katakanaYoonData.flatMap(group => 
+      group.items.map(item => ({ 
+        ...item, 
+        type: 'yoon' as const,
+        subType: 'katakana' as const 
+      }))
+    );
+    
+    return [...hiraItems, ...kataItems];
+  };
+
   // 生成随机问题
-  const generateQuestions = (mode: 'hiragana' | 'katakana' | 'both') => {
+  const generateQuestions = (mode: QuizType, maxCount?: number) => {
+    if (!mode) return;
+    
     setIsLoading(true);
     
     let allData: any[] = [];
-    if (mode === 'hiragana' || mode === 'both') {
-      allData = [...allData, ...hiraganaData.map(item => ({...item, type: 'hiragana'}))];
-    }
-    if (mode === 'katakana' || mode === 'both') {
-      allData = [...allData, ...katakanaData.map(item => ({...item, type: 'katakana'}))];
+    
+    // 根据模式选择数据源
+    switch (mode) {
+      case 'hiragana':
+        allData = [...hiraganaData.map(item => ({...item, type: 'hiragana'}))];
+        break;
+      case 'katakana':
+        allData = [...katakanaData.map(item => ({...item, type: 'katakana'}))];
+        break;
+      case 'both':
+        allData = [
+          ...hiraganaData.map(item => ({...item, type: 'hiragana'})),
+          ...katakanaData.map(item => ({...item, type: 'katakana'}))
+        ];
+        break;
+      case 'dakuten':
+        allData = [
+          ...hiraganaDakutenData.map(item => ({...item, type: 'dakuten', subType: 'hiragana'})),
+          ...katakanaDakutenData.map(item => ({...item, type: 'dakuten', subType: 'katakana'}))
+        ];
+        break;
+      case 'yoon':
+        allData = extractYoonQuestions();
+        break;
+      case 'vocabulary':
+        allData = vocabularyData.map(item => ({
+          kana: item.hiragana || item.katakana || '',
+          romaji: item.romaji,
+          meaning: item.meaning,
+          type: 'vocabulary'
+        }));
+        break;
     }
     
-    // 随机选择10个问题
+    // 获取完整的测试数据，随机排序
     const shuffled = [...allData].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 10);
+    
+    // 如果指定了最大数量，则限制题目数量
+    const selected = maxCount ? shuffled.slice(0, maxCount) : shuffled;
     
     // 为每个问题生成选项
     const quizQuestions = selected.map(item => {
@@ -74,7 +133,9 @@ const QuizScreen = ({ route }: Props) => {
         kana: item.kana,
         romaji: item.romaji,
         options,
-        type: item.type
+        type: item.type,
+        subType: item.subType,
+        meaning: item.meaning
       };
     });
     
@@ -110,7 +171,7 @@ const QuizScreen = ({ route }: Props) => {
 
   const renderQuizModeSelection = () => {
     return (
-      <View style={styles.modeContainer}>
+      <ScrollView contentContainerStyle={styles.modeContainer}>
         <Text style={[styles.modeTitle, { color: theme.text }]}>选择测试模式</Text>
         
         <TouchableOpacity 
@@ -136,16 +197,49 @@ const QuizScreen = ({ route }: Props) => {
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.modeButton, { backgroundColor: theme.primary }]}
+          style={[styles.modeButton, { backgroundColor: theme.combinedColor }]}
           onPress={() => {
             setQuizMode('both');
             generateQuestions('both');
           }}
         >
           <Ionicons name="school-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
-          <Text style={styles.modeButtonText}>混合测试</Text>
+          <Text style={styles.modeButtonText}>五十音混合测试</Text>
         </TouchableOpacity>
-      </View>
+
+        <TouchableOpacity 
+          style={[styles.modeButton, { backgroundColor: theme.dakutenColor }]}
+          onPress={() => {
+            setQuizMode('dakuten');
+            generateQuestions('dakuten');
+          }}
+        >
+          <Ionicons name="grid-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
+          <Text style={styles.modeButtonText}>浊音/半浊音测试</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.modeButton, { backgroundColor: theme.yoonColor }]}
+          onPress={() => {
+            setQuizMode('yoon');
+            generateQuestions('yoon');
+          }}
+        >
+          <Ionicons name="expand-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
+          <Text style={styles.modeButtonText}>拗音测试</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.modeButton, { backgroundColor: theme.quizColor }]}
+          onPress={() => {
+            setQuizMode('vocabulary');
+            generateQuestions('vocabulary');
+          }}
+        >
+          <Ionicons name="chatbubbles-outline" size={24} color="#FFFFFF" style={styles.modeIcon} />
+          <Text style={styles.modeButtonText}>词汇测试</Text>
+        </TouchableOpacity>
+      </ScrollView>
     );
   };
 
@@ -163,6 +257,32 @@ const QuizScreen = ({ route }: Props) => {
     
     const currentQuestion = questions[currentQuestionIndex];
     
+    // 根据题目类型确定颜色
+    const getQuestionColor = () => {
+      switch (currentQuestion.type) {
+        case 'hiragana': return theme.hiraganaColor;
+        case 'katakana': return theme.katakanaColor;
+        case 'dakuten': return theme.dakutenColor;
+        case 'yoon': return theme.yoonColor;
+        case 'vocabulary': return theme.quizColor;
+        default: return theme.primary;
+      }
+    };
+
+    // 显示题目类型
+    const getQuestionType = () => {
+      switch (currentQuestion.type) {
+        case 'hiragana': return '平假名';
+        case 'katakana': return '片假名';
+        case 'dakuten': 
+          return currentQuestion.subType === 'hiragana' ? '平假名浊音/半浊音' : '片假名浊音/半浊音';
+        case 'yoon': 
+          return currentQuestion.subType === 'hiragana' ? '平假名拗音' : '片假名拗音';
+        case 'vocabulary': return '词汇';
+        default: return '';
+      }
+    };
+    
     return (
       <View style={styles.questionContainer}>
         <View style={styles.progressContainer}>
@@ -175,7 +295,7 @@ const QuizScreen = ({ route }: Props) => {
                 styles.progressFill, 
                 { 
                   width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
-                  backgroundColor: currentQuestion.type === 'hiragana' ? theme.hiraganaColor : theme.katakanaColor
+                  backgroundColor: getQuestionColor()
                 }
               ]} 
             />
@@ -186,12 +306,19 @@ const QuizScreen = ({ route }: Props) => {
           <Text style={[styles.kanaText, { color: theme.text }]}>
             {currentQuestion.kana}
           </Text>
+          {currentQuestion.meaning && (
+            <Text style={[styles.meaningText, { color: theme.subText }]}>
+              {currentQuestion.meaning}
+            </Text>
+          )}
           <Text style={[styles.kanaType, { color: theme.subText }]}>
-            {currentQuestion.type === 'hiragana' ? '平假名' : '片假名'}
+            {getQuestionType()}
           </Text>
         </View>
         
-        <Text style={[styles.questionText, { color: theme.text }]}>这个假名的读音是？</Text>
+        <Text style={[styles.questionText, { color: theme.text }]}>
+          {currentQuestion.type === 'vocabulary' ? '这个词汇的读音是？' : '这个假名的读音是？'}
+        </Text>
         
         <View style={styles.optionsContainer}>
           {currentQuestion.options.map((option, index) => (
@@ -248,65 +375,41 @@ const QuizScreen = ({ route }: Props) => {
     return (
       <View style={styles.resultContainer}>
         <View style={[styles.resultCard, { backgroundColor: theme.card }]}>
-          <Ionicons name={resultIcon as any} size={60} color={theme.primary} style={styles.resultIcon} />
-          
-          <Text style={[styles.resultTitle, { color: theme.text }]}>测试完成！</Text>
-          
-          <View style={styles.scoreContainer}>
-            <Text style={[styles.scoreText, { color: theme.text }]}>
-              得分：{score} / {questions.length}
-            </Text>
-            <View style={styles.scoreBar}>
-              <View 
-                style={[
-                  styles.scoreFill, 
-                  { 
-                    width: `${percentage}%`,
-                    backgroundColor: 
-                      percentage >= 70 ? '#4CAF50' : 
-                      percentage >= 50 ? '#FFC107' : '#F44336'
-                  }
-                ]} 
-              />
-            </View>
-            <Text style={[styles.percentageText, { color: theme.subText }]}>
-              {percentage.toFixed(0)}%
-            </Text>
-          </View>
-          
-          <Text style={[styles.resultMessage, { color: theme.text }]}>{resultMessage}</Text>
+          <Ionicons name={resultIcon as any} size={64} color={theme.primary} style={styles.resultIcon} />
+          <Text style={[styles.scoreText, { color: theme.text }]}>
+            你的得分: {score} / {questions.length}
+          </Text>
+          <Text style={[styles.percentText, { color: theme.text }]}>
+            {percentage.toFixed(0)}%
+          </Text>
+          <Text style={[styles.resultMessage, { color: theme.text }]}>
+            {resultMessage}
+          </Text>
           
           <TouchableOpacity 
-            style={[styles.retryButton, { backgroundColor: theme.primary }]}
-            onPress={() => {
-              if (quizMode) {
-                generateQuestions(quizMode);
-              } else {
-                setQuizMode(null);
-              }
-            }}
+            style={[styles.tryAgainButton, { backgroundColor: theme.primary }]}
+            onPress={() => generateQuestions(quizMode!)}
           >
-            <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={styles.retryIcon} />
-            <Text style={styles.retryButtonText}>再来一次</Text>
+            <Text style={styles.tryAgainText}>再测试一次</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.homeButton, { borderColor: theme.border }]}
+            style={[styles.changeModeButton, { borderColor: theme.border }]}
             onPress={() => setQuizMode(null)}
           >
-            <Text style={[styles.homeButtonText, { color: theme.text }]}>返回选择</Text>
+            <Text style={[styles.changeModeText, { color: theme.text }]}>更改测试模式</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   };
 
+  // 主渲染逻辑
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView style={styles.scrollView}>
-        {quizMode === null ? renderQuizModeSelection() : 
-         showResult ? renderResult() : renderQuestion()}
-      </ScrollView>
+      {!quizMode && renderQuizModeSelection()}
+      {quizMode && !showResult && renderQuestion()}
+      {showResult && renderResult()}
     </SafeAreaView>
   );
 };
@@ -315,29 +418,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
   modeContainer: {
     padding: 20,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   modeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 30,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   modeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '90%',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   modeIcon: {
-    marginRight: 10,
+    marginRight: 15,
   },
   modeButtonText: {
     color: '#FFFFFF',
@@ -348,74 +452,75 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: 20,
+    fontSize: 18,
   },
   questionContainer: {
+    flex: 1,
     padding: 20,
-    alignItems: 'center',
   },
   progressContainer: {
-    width: '100%',
     marginBottom: 20,
   },
   progressText: {
-    fontSize: 14,
-    marginBottom: 5,
-    textAlign: 'right',
+    fontSize: 16,
+    marginBottom: 8,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 4,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
   },
   kanaCard: {
-    width: 150,
-    height: 150,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 15,
-    borderWidth: 2,
-    marginBottom: 30,
+    justifyContent: 'center',
+    padding: 30,
+    borderRadius: 10,
+    marginBottom: 20,
+    borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowRadius: 4,
+    elevation: 2,
   },
   kanaText: {
-    fontSize: 70,
+    fontSize: 72,
     fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  meaningText: {
+    fontSize: 20,
+    marginBottom: 10,
   },
   kanaType: {
-    fontSize: 14,
-    marginTop: 5,
+    fontSize: 16,
   },
   questionText: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
+    textAlign: 'center',
   },
   optionsContainer: {
-    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   optionButton: {
-    width: '100%',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 2,
+    width: '48%',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    marginBottom: 15,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   correctOption: {
     backgroundColor: '#4CAF50',
@@ -426,87 +531,61 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   resultContainer: {
+    flex: 1,
     padding: 20,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   resultCard: {
-    width: '100%',
-    padding: 20,
-    borderRadius: 15,
+    padding: 30,
+    borderRadius: 10,
     alignItems: 'center',
+    width: '100%',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowRadius: 4,
+    elevation: 2,
   },
   resultIcon: {
-    marginBottom: 15,
-  },
-  resultTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  scoreContainer: {
-    width: '100%',
-    alignItems: 'center',
     marginBottom: 20,
   },
   scoreText: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  scoreBar: {
-    width: '100%',
-    height: 10,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 5,
-    overflow: 'hidden',
-    marginBottom: 5,
-  },
-  scoreFill: {
-    height: '100%',
-  },
-  percentageText: {
-    fontSize: 16,
+  percentText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
   resultMessage: {
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 30,
   },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  tryAgainButton: {
     width: '100%',
     padding: 15,
     borderRadius: 10,
+    alignItems: 'center',
     marginBottom: 10,
   },
-  retryIcon: {
-    marginRight: 10,
-  },
-  retryButtonText: {
+  tryAgainText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  homeButton: {
+  changeModeButton: {
     width: '100%',
     padding: 15,
     borderRadius: 10,
-    borderWidth: 1,
     alignItems: 'center',
+    borderWidth: 1,
   },
-  homeButtonText: {
+  changeModeText: {
     fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 

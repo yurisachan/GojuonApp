@@ -17,6 +17,8 @@ interface ThemeColors {
   quizColor: string;
   disabledButton: string;
   combinedColor: string;
+  dakutenColor: string; // 浊音/半浊音颜色
+  yoonColor: string;    // 拗音颜色
 }
 
 // 定义主题上下文接口
@@ -42,6 +44,8 @@ const lightTheme: ThemeColors = {
   quizColor: 'rgb(242, 158, 76)',
   disabledButton: '#CCCCCC',
   combinedColor: 'rgb(88, 149, 222)',
+  dakutenColor: 'rgb(142, 68, 173)', // 紫色
+  yoonColor: 'rgb(230, 126, 34)'     // 橙色
 };
 
 // 暗色主题配置
@@ -59,6 +63,8 @@ const darkTheme: ThemeColors = {
   quizColor: 'rgb(229, 115, 20)',
   disabledButton: '#4A5568',
   combinedColor: 'rgb(48, 116, 195)',
+  dakutenColor: 'rgb(155, 89, 182)', // 暗紫色
+  yoonColor: 'rgb(211, 84, 0)'       // 暗橙色
 };
 
 // 创建主题上下文
